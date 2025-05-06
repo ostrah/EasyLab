@@ -4,35 +4,25 @@ import { useState, useEffect, useRef } from "react";
 import { useDevices } from "../context/DeviceContext";
 
 export default function MainView() {
-  const { devices } = useDevices();
+  const { devices, deleteDevice } = useDevices();
   const [elements, setElements] = useState([]);
   const [contextMenu, setContextMenu] = useState(null);
   const [elementMenu, setElementMenu] = useState(null);
   const containerRef = useRef(null);
 
-  // Load from localStorage on mount
+  // При загрузке devices заполняем elements с начальными координатами
   useEffect(() => {
-    const saved = localStorage.getItem("elements");
-    if (saved) {
-      setElements(JSON.parse(saved));
-    }
-  }, []);
-
-  // Save to localStorage on change
-  useEffect(() => {
-    localStorage.setItem("elements", JSON.stringify(elements));
-  }, [elements]);
-
-  const addElement = (device, x, y) => {
-    const newElement = {
-      id: Date.now(),
-      ...device,
-      x,
-      y,
-    };
-    setElements((prev) => [...prev, newElement]);
-    setContextMenu(null);
-  };
+    const loaded = devices.map((d) => ({
+      id: d._id,
+      name: d.name,
+      type: d.type,
+      ip: d.ipExternal,
+      telnetPort: 23, // по умолчанию
+      x: 100 + Math.random() * 200, // случайные стартовые координаты
+      y: 100 + Math.random() * 200,
+    }));
+    setElements(loaded);
+  }, [devices]);
 
   const handleRightClick = (e) => {
     e.preventDefault();
@@ -60,12 +50,14 @@ export default function MainView() {
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+
     setElements((prev) =>
       prev.map((el) => (el.id === id ? { ...el, x, y } : el))
     );
   };
 
   const deleteElement = (id) => {
+    deleteDevice(id);
     setElements((prev) => prev.filter((el) => el.id !== id));
     setElementMenu(null);
   };
@@ -85,11 +77,9 @@ export default function MainView() {
           <div
             key={el.id}
             onContextMenu={(e) => handleElementRightClick(e, el)}
-            onDoubleClick={() =>
-              window.open(`telnet://${el.ip}:${el.telnetPort}`, "_blank")
-            }
-            style={{ left: el.x, top: el.y }}
-            className="absolute cursor-move px-3 py-2 bg-gray-700 rounded shadow text-white hover:bg-gray-600 select-none"
+            onDoubleClick={() => window.open(`telnet://${el.ip}`, "_blank")}
+            style={{ left: el.x, top: el.y, position: "absolute" }}
+            className="cursor-move px-3 py-2 bg-gray-700 rounded shadow text-white hover:bg-gray-600 select-none"
             onMouseDown={(e) => {
               const move = (e) => onDrag(e, el.id);
               const up = () => {
@@ -100,32 +90,14 @@ export default function MainView() {
               window.addEventListener("mouseup", up);
             }}
           >
-            {el.type === "Router" && "🛜 Router"}
-            {el.type === "Switch" && "🔀 Switch"}
-            {el.type === "PC" && "💻 PC"}
+            {el.type === "router" && "🛜 Router"}
+            {el.type === "switch" && "🔀 Switch"}
+            {el.type === "pc" && "💻 PC"}
             <br />
-            {el.ip}:{el.telnetPort}
+            {el.ip}
           </div>
         ))}
       </div>
-
-      {/* Context menu for adding */}
-      {contextMenu && devices.length > 0 && (
-        <ul
-          className="absolute bg-gray-800 text-white rounded shadow-md z-20"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          {devices.map((device) => (
-            <li
-              key={device.id}
-              onClick={() => addElement(device, contextMenu.x, contextMenu.y)}
-              className="px-4 py-2 hover:bg-gray-700 cursor-pointer"
-            >
-              ➕ Add {device.type} ({device.ip}:{device.telnetPort})
-            </li>
-          ))}
-        </ul>
-      )}
 
       {/* Context menu for element */}
       {elementMenu && (
