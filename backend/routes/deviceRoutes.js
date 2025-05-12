@@ -3,13 +3,14 @@ const router = express.Router();
 const Device = require('../models/device');
 
 // Получить все устройства
-router.get('/devices', async (req, res) => {
+router.get('/', async (req, res) => {  // ← именно '/'
     const devices = await Device.find();
     res.json(devices);
-});
+  });
+  
 
 // Создать новое устройство
-router.post('/devices', async (req, res) => {
+router.post('/', async (req, res) => {
     const device = new Device({
         name: req.body.name,
         type: req.body.type,
@@ -25,7 +26,7 @@ router.post('/devices', async (req, res) => {
 });
 
 // 🚀 Получить связи устройства
-router.get('/devices/:id/connections', async (req, res) => {
+router.get('/:id/connections', async (req, res) => {
     try {
         const device = await Device.findById(req.params.id).populate('connections');
         if (!device) {
@@ -38,7 +39,7 @@ router.get('/devices/:id/connections', async (req, res) => {
 });
 
 // 🚀 Соединить два устройства
-router.post('/devices/:id/connect', async (req, res) => {
+router.post('/:id/connect', async (req, res) => {
     try {
         const { targetId } = req.body;
         const device = await Device.findById(req.params.id);
@@ -63,7 +64,7 @@ router.post('/devices/:id/connect', async (req, res) => {
     }
 });
 
-router.delete('/devices/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
     try {
         const device = await Device.findByIdAndDelete(req.params.id);
         if (!device) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { FaTable, FaHome } from "react-icons/fa";
+import { FaTable, FaHome, FaNetworkWired } from "react-icons/fa";
 
 export default function SideBar({ setView, collapsed }) {
   const itemStyle = "flex items-center gap-1 p-1.5 hover:bg-gray-700 rounded";
@@ -15,6 +15,10 @@ export default function SideBar({ setView, collapsed }) {
       <button onClick={() => setView("table")} className={`${itemStyle} ${collapsed ? iconOnly : ""}`}>
         <FaTable />
         {!collapsed && <span>Table</span>}
+      </button>
+      <button onClick={() => setView("connections")} className={`${itemStyle} ${collapsed ? iconOnly : ""}`}>
+        <FaNetworkWired />
+        {!collapsed && <span>Connections</span>}
       </button>
     </div>
   );
