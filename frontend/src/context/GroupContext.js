@@ -4,26 +4,33 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
 
-const GroupContext = createContext();
+// ⛑️ null — чтобы было понятно, что провайдера может не быть
+const GroupContext = createContext(null);
+
+export function useGroups() {
+  const ctx = useContext(GroupContext);
+  if (!ctx) {
+    throw new Error("useGroups must be used inside <GroupProvider>");
+  }
+  return ctx;
+}
 
 export function GroupProvider({ children }) {
-  const [groups, setGroups] = useState([]);
-  const [activeGroupId, setActiveGroupId] = useState(null);
-
-  useEffect(() => {
-    fetchGroups();
-  }, []);
+  const [groups, setGroups] = useState([]);        // все группы
+  const [activeGroupId, setActiveGroupId] = useState(null); // id выбранной
 
   const fetchGroups = async () => {
     try {
-      console.log('GroupContext: fetchGroups called');
       const res = await axios.get("http://localhost:3001/api/groups");
       const processedGroups = res.data.map(group => ({
         ...group,
         devices: group.devices
       }));
-      console.log('GroupContext: fetched groups:', processedGroups);
       setGroups(processedGroups);
+      // Устанавливаем активную группу только если она не установлена
+      if (processedGroups.length > 0 && !activeGroupId) {
+        setActiveGroupId(processedGroups[0]._id);
+      }
     } catch (err) {
       console.error("Ошибка загрузки групп", err);
     }
@@ -34,7 +41,6 @@ export function GroupProvider({ children }) {
       const res = await axios.post("http://localhost:3001/api/groups", {
         name: `Group ${groups.length + 1}`,
       });
-      console.log('Created new group:', res.data);
       setGroups((prev) => [...prev, { ...res.data, devices: [] }]);
     } catch (err) {
       console.error("Ошибка создания группы", err);
@@ -75,19 +81,17 @@ export function GroupProvider({ children }) {
     }
   };
 
+  // Загружаем группы при монтировании
+  useEffect(() => {
+    fetchGroups();
+  }, []);
+
   return (
     <GroupContext.Provider
       value={{ 
         groups, 
         activeGroupId, 
-        setActiveGroupId: (id) => {
-          console.log('GroupContext: setActiveGroupId called with:', id);
-          if (id !== activeGroupId) {
-            console.log('GroupContext: updating activeGroupId');
-            setActiveGroupId(id);
-            fetchGroups();
-          }
-        }, 
+        setActiveGroupId,
         createGroup, 
         deleteGroup,
         addDeviceToGroup,
@@ -98,8 +102,4 @@ export function GroupProvider({ children }) {
       {children}
     </GroupContext.Provider>
   );
-}
-
-export function useGroups() {
-  return useContext(GroupContext);
 }

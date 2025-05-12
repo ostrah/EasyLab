@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useDevices } from "../context/DeviceContext";
 import { useGroups } from "../context/GroupContext";
 import { useConnections } from "../context/ConnectionContext";
@@ -8,7 +8,7 @@ import { useConnections } from "../context/ConnectionContext";
 export default function GroupEditor() {
   const { devices, addDevice, updateDevice, deleteDevice } = useDevices();
   const { 
-    groups, 
+    groups = [], 
     activeGroupId, 
     setActiveGroupId, 
     createGroup, 
@@ -25,21 +25,18 @@ export default function GroupEditor() {
   const [editingDevice, setEditingDevice] = useState(null);
   const [newDevice, setNewDevice] = useState({ name: "", type: "pc", ip: "" });
 
-  const handleGroupChange = async (groupId) => {
-    console.log('GroupEditor: handleGroupChange called with groupId:', groupId);
-    if (groupId === activeGroupId) {
-      console.log('GroupEditor: same group selected, skipping update');
-      return;
-    }
-    console.log('GroupEditor: updating activeGroupId to:', groupId);
-    setActiveGroupId(groupId);
-  };
+  if (!groups.length) {
+    return <p className="p-4">Нет групп для отображения</p>;
+  }
 
   const activeGroup = groups.find(g => g._id === activeGroupId);
-  console.log('GroupEditor: found active group:', activeGroup);
+  if (!activeGroup) {
+    return <p className="p-4">Выберите группу</p>;
+  }
+
   const groupConnections = connections.filter(conn => 
-    activeGroup?.devices.some(d => d._id === conn.source) && 
-    activeGroup?.devices.some(d => d._id === conn.target)
+    activeGroup.devices.some(d => d._id === conn.source) && 
+    activeGroup.devices.some(d => d._id === conn.target)
   );
 
   const handleCreateConnection = () => {
@@ -63,7 +60,6 @@ export default function GroupEditor() {
   const handleCreateDevice = async () => {
     await addDevice(newDevice);
     setNewDevice({ name: "", type: "pc", ip: "" });
-    await fetchGroups();
   };
 
   const getDeviceName = (deviceId) => {
@@ -78,25 +74,15 @@ export default function GroupEditor() {
         <div className="flex gap-2">
           <select
             value={activeGroupId || ""}
-            onChange={(e) => {
-              const newGroupId = e.target.value;
-              console.log('Select onChange triggered with new value:', newGroupId);
-              handleGroupChange(newGroupId);
-            }}
+            onChange={(e) => setActiveGroupId(e.target.value)}
             className="bg-gray-700 rounded px-3 py-2"
           >
             <option value="">Select Group</option>
-            {groups.map(group => {
-              console.log('Rendering group option:', group._id, group.name);
-              return (
-                <option 
-                  key={group._id} 
-                  value={group._id}
-                >
-                  {group.name}
-                </option>
-              );
-            })}
+            {groups.map(group => (
+              <option key={group._id} value={group._id}>
+                {group.name}
+              </option>
+            ))}
           </select>
           <button
             onClick={createGroup}
