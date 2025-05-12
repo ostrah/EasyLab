@@ -1,7 +1,7 @@
 "use client";
 
 // frontend/src/context/GroupContext.js
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
 import axios from "axios";
 
 // ⛑️ null — чтобы было понятно, что провайдера может не быть
@@ -18,6 +18,12 @@ export function useGroups() {
 export function GroupProvider({ children }) {
   const [groups, setGroups] = useState([]);        // все группы
   const [activeGroupId, setActiveGroupId] = useState(null); // id выбранной
+
+  // Мемоизированное вычисление текущей группы
+  const activeGroup = useMemo(() => 
+    groups.find(g => g._id === activeGroupId) || null,
+    [groups, activeGroupId]
+  );
 
   const fetchGroups = async () => {
     try {
@@ -92,6 +98,7 @@ export function GroupProvider({ children }) {
         groups, 
         activeGroupId, 
         setActiveGroupId,
+        activeGroup,
         createGroup, 
         deleteGroup,
         addDeviceToGroup,

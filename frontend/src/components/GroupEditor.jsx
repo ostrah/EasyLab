@@ -11,12 +11,11 @@ export default function GroupEditor() {
     groups = [], 
     activeGroupId, 
     setActiveGroupId, 
+    activeGroup,
     createGroup, 
-    updateGroup, 
     deleteGroup, 
     addDeviceToGroup, 
-    removeDeviceFromGroup,
-    fetchGroups 
+    removeDeviceFromGroup
   } = useGroups();
   const { connections, createConnection, deleteConnection } = useConnections();
   
@@ -29,7 +28,6 @@ export default function GroupEditor() {
     return <p className="p-4">Нет групп для отображения</p>;
   }
 
-  const activeGroup = groups.find(g => g._id === activeGroupId);
   if (!activeGroup) {
     return <p className="p-4">Выберите группу</p>;
   }
@@ -172,7 +170,7 @@ export default function GroupEditor() {
           <div className="bg-gray-800 p-4 rounded-lg">
             <h3 className="text-lg font-semibold mb-3">Group Devices</h3>
             <div className="space-y-2">
-              {activeGroup?.devices.map(device => (
+              {activeGroup.devices.map(device => (
                 <div
                   key={device._id}
                   className="flex items-center justify-between bg-gray-700 p-3 rounded"
@@ -194,7 +192,7 @@ export default function GroupEditor() {
                   </button>
                 </div>
               ))}
-              {(!activeGroup || activeGroup.devices.length === 0) && (
+              {activeGroup.devices.length === 0 && (
                 <div className="text-gray-400 text-center py-4">
                   No devices in group
                 </div>
@@ -203,7 +201,7 @@ export default function GroupEditor() {
           </div>
 
           {/* Create connection */}
-          {activeGroup && activeGroup.devices.length > 1 && (
+          {activeGroup.devices.length > 1 && (
             <div className="bg-gray-800 p-4 rounded-lg">
               <h3 className="text-lg font-semibold mb-3">Create Connection</h3>
               <div className="flex gap-4 items-end">
