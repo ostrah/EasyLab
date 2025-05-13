@@ -75,4 +75,22 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// Обновить позицию устройства
+router.patch('/:id/position', async (req, res) => {
+  try {
+    const { x, y } = req.body;
+    const device = await Device.findByIdAndUpdate(
+      req.params.id,
+      { position: { x, y } },
+      { new: true }
+    );
+    if (!device) {
+      return res.status(404).json({ message: 'Device not found' });
+    }
+    res.json(device);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

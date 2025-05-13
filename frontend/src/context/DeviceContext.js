@@ -54,6 +54,15 @@ export function DeviceProvider({ children }) {
     }
   };
 
+  const updateDevicePosition = async (id, x, y) => {
+    try {
+      const res = await axios.patch(`${API_BASE_URL}/devices/${id}/position`, { x, y });
+      setDevices(prev => prev.map(d => d._id === id ? res.data : d));
+    } catch (err) {
+      console.error("❌ Ошибка при обновлении позиции устройства:", err.message);
+    }
+  };
+
   return (
     <DeviceContext.Provider
       value={{
@@ -63,6 +72,7 @@ export function DeviceProvider({ children }) {
         deleteDevice,
         connectDevices,
         fetchDevices,
+        updateDevicePosition
       }}
     >
       {children}

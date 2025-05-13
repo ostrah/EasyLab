@@ -1,111 +1,159 @@
 "use client";
 
-import { useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useConnections } from '../context/ConnectionContext';
-import { getCableColor } from '../utils/portPositions';
 
-// Реестр для хранения ссылок на DOM-элементы портов
+// Создаем реестр портов для хранения их позиций
 const portRegistry = new Map();
 
-export function registerPort(deviceId, portName, element) {
-  portRegistry.set(`${deviceId}-${portName}`, element);
-}
+// Функции для работы с реестром портов
+export const registerPort = (deviceId, portName, element) => {
+  const key = `${deviceId}-${portName}`;
+  portRegistry.set(key, element);
+  console.log('Port registered:', { key, element });
+};
 
-export function unregisterPort(deviceId, portName) {
-  portRegistry.delete(`${deviceId}-${portName}`);
-}
+export const unregisterPort = (deviceId, portName) => {
+  const key = `${deviceId}-${portName}`;
+  portRegistry.delete(key);
+  console.log('Port unregistered:', key);
+};
 
-export function getPortElement(deviceId, portName) {
-  return portRegistry.get(`${deviceId}-${portName}`);
-}
+export const getPortCenter = (deviceId, portName) => {
+  const key = `${deviceId}-${portName}`;
+  const element = portRegistry.get(key);
+  if (!element) {
+    console.log('Port not found:', key);
+    return null;
+  }
+  const rect = element.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2
+  };
+};
 
-export default function ConnectionsLayer() {
+export default function ConnectionsLayer({ onConnectionRightClick }) {
   const { connections, pending } = useConnections();
-  const svgRef = useRef(null);
+  const [svgSize, setSvgSize] = useState({ width: 0, height: 0 });
+  const containerRef = useRef(null);
 
-  // Обновляем размеры SVG при изменении размера окна
+  // Обновляем размер SVG при изменении размера окна
   useEffect(() => {
-    const updateSvgSize = () => {
-      if (svgRef.current) {
-        const parent = svgRef.current.parentElement;
-        svgRef.current.setAttribute('width', parent.offsetWidth);
-        svgRef.current.setAttribute('height', parent.offsetHeight);
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setSvgSize({
+          width: rect.width,
+          height: rect.height
+        });
       }
     };
 
-    window.addEventListener('resize', updateSvgSize);
-    updateSvgSize();
-
-    return () => window.removeEventListener('resize', updateSvgSize);
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  const getPortCenter = (deviceId, portName) => {
-    const portElement = getPortElement(deviceId, portName);
-    if (!portElement) return null;
+  // Функция для получения точек соединения
+  const getConnectionPoints = (connection) => {
+    // Поддержка старой структуры
+    if (connection.source && connection.target) {
+      const sourceCenter = getPortCenter(connection.source, 'f0/0');
+      const targetCenter = getPortCenter(connection.target, 'f0/0');
+      return { sourceCenter, targetCenter };
+    }
+    
+    // Поддержка новой структуры
+    if (connection.devA && connection.devB) {
+      const sourceCenter = getPortCenter(connection.devA, connection.ifaceA);
+      const targetCenter = getPortCenter(connection.devB, connection.ifaceB);
+      return { sourceCenter, targetCenter };
+    }
 
-    const rect = portElement.getBoundingClientRect();
-    const svgRect = svgRef.current.getBoundingClientRect();
+    return { sourceCenter: null, targetCenter: null };
+  };
 
-    return {
-      x: rect.left + rect.width / 2 - svgRect.left,
-      y: rect.top + rect.height / 2 - svgRect.top
-    };
+  // Функция для отрисовки соединения
+  const renderConnection = (connection) => {
+    const { sourceCenter, targetCenter } = getConnectionPoints(connection);
+    
+    if (!sourceCenter || !targetCenter) {
+      console.log('Missing port centers for connection:', connection);
+      return null;
+    }
+
+    const isActive = connection.status === 'up';
+    const strokeColor = isActive ? '#22c55e' : '#ef4444';
+    const strokeWidth = isActive ? 2 : 1;
+
+    return (
+      <g key={connection._id}>
+        <line
+          x1={sourceCenter.x}
+          y1={sourceCenter.y}
+          x2={targetCenter.x}
+          y2={targetCenter.y}
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          onContextMenu={(e) => onConnectionRightClick?.(e, connection)}
+          style={{ cursor: 'pointer' }}
+        />
+        <circle
+          cx={sourceCenter.x}
+          cy={sourceCenter.y}
+          r={4}
+          fill={strokeColor}
+        />
+        <circle
+          cx={targetCenter.x}
+          cy={targetCenter.y}
+          r={4}
+          fill={strokeColor}
+        />
+      </g>
+    );
+  };
+
+  // Функция для отрисовки ожидающего соединения
+  const renderPendingConnection = () => {
+    if (!pending) return null;
+
+    const sourceCenter = getPortCenter(pending.deviceId, pending.portName);
+    if (!sourceCenter) return null;
+
+    return (
+      <g>
+        <line
+          x1={sourceCenter.x}
+          y1={sourceCenter.y}
+          x2={sourceCenter.x + 100}
+          y2={sourceCenter.y}
+          stroke="#22c55e"
+          strokeWidth={2}
+          strokeDasharray="5,5"
+        />
+        <circle
+          cx={sourceCenter.x}
+          cy={sourceCenter.y}
+          r={4}
+          fill="#22c55e"
+        />
+      </g>
+    );
   };
 
   return (
     <svg
-      ref={svgRef}
-      className="absolute inset-0 pointer-events-none"
-      style={{ zIndex: 10 }}
+      ref={containerRef}
+      className="absolute inset-0 z-10 pointer-events-none"
+      width={svgSize.width}
+      height={svgSize.height}
     >
-      {/* Существующие соединения */}
-      {connections.map(conn => {
-        const fromCenter = getPortCenter(conn.devA._id, conn.ifaceA);
-        const toCenter = getPortCenter(conn.devB._id, conn.ifaceB);
-        
-        if (!fromCenter || !toCenter) return null;
-
-        return (
-          <g key={conn._id}>
-            <line
-              x1={fromCenter.x}
-              y1={fromCenter.y}
-              x2={toCenter.x}
-              y2={toCenter.y}
-              stroke={getCableColor(conn.ifaceA, conn.ifaceB)}
-              strokeWidth={2}
-              className="connection-line"
-            />
-            {/* Индикатор статуса */}
-            <circle
-              cx={(fromCenter.x + toCenter.x) / 2}
-              cy={(fromCenter.y + toCenter.y) / 2}
-              r={4}
-              fill={conn.status === 'up' ? '#6c6' : '#c66'}
-              className="connection-status"
-            />
-          </g>
-        );
-      })}
-
-      {/* Промежуточное соединение при создании */}
-      {pending && (() => {
-        const fromCenter = getPortCenter(pending.deviceId, pending.portName);
-        if (!fromCenter) return null;
-
-        return (
-          <line
-            x1={fromCenter.x}
-            y1={fromCenter.y}
-            x2={fromCenter.x}
-            y2={fromCenter.y}
-            stroke="#666"
-            strokeWidth={2}
-            strokeDasharray="5,5"
-            className="pending-connection"
-          />
-        );
-      })()}
+      <g className="pointer-events-auto">
+        {connections.map(renderConnection)}
+        {renderPendingConnection()}
+      </g>
     </svg>
   );
 } 

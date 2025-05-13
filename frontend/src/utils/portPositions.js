@@ -1,48 +1,44 @@
-// Расчет позиции порта в процентах относительно устройства
-export function calculatePortPosition(index, totalPorts, deviceType) {
+// Расчет позиции порта на устройстве
+export function calculatePortPosition(portName, deviceType) {
   // Для PC только один порт
   if (deviceType === 'pc') {
-    return { x: 50, y: 0 }; // Верхний край
+    return { x: 50, y: 0 }; // Сверху по центру
   }
 
-  // Для роутера и свича распределяем порты по периметру
-  const positions = [];
-  const sideLength = Math.ceil(totalPorts / 4); // Количество портов на одной стороне
+  // Для роутера и свича
+  const portNumber = parseInt(portName.split('/')[1]);
+  const isSerial = portName.startsWith('s');
+  const isConsole = portName === 'console';
 
-  // Верхняя сторона
-  for (let i = 0; i < sideLength; i++) {
-    positions.push({
-      x: (i + 1) * (100 / (sideLength + 1)),
-      y: 0
-    });
+  if (isConsole) {
+    return { x: 50, y: 100 }; // Снизу по центру
   }
 
-  // Правая сторона
-  for (let i = 0; i < sideLength; i++) {
-    positions.push({
-      x: 100,
-      y: (i + 1) * (100 / (sideLength + 1))
-    });
+  if (isSerial) {
+    // Serial порты справа
+    return { x: 100, y: 30 + portNumber * 20 };
   }
 
-  // Нижняя сторона
-  for (let i = 0; i < sideLength; i++) {
-    positions.push({
-      x: 100 - (i + 1) * (100 / (sideLength + 1)),
-      y: 100
-    });
+  // Ethernet порты слева
+  return { x: 0, y: 30 + portNumber * 20 };
+}
+
+// Определение цвета кабеля в зависимости от типов портов
+export function getCableColor(portA, portB) {
+  const isSerialA = portA.startsWith('s');
+  const isSerialB = portB.startsWith('s');
+  const isConsoleA = portA === 'console';
+  const isConsoleB = portB === 'console';
+
+  if (isSerialA || isSerialB) {
+    return '#c66'; // Красный для serial
   }
 
-  // Левая сторона
-  for (let i = 0; i < sideLength; i++) {
-    positions.push({
-      x: 0,
-      y: 100 - (i + 1) * (100 / (sideLength + 1))
-    });
+  if (isConsoleA || isConsoleB) {
+    return '#66c'; // Синий для console
   }
 
-  // Возвращаем позицию для текущего индекса
-  return positions[index] || { x: 50, y: 50 }; // Fallback в центр
+  return '#6c6'; // Зеленый для ethernet
 }
 
 // Получение типа кабеля для соединения

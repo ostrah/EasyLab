@@ -4,15 +4,34 @@ import { useState, useEffect, useRef } from "react";
 import { useDevices } from "../context/DeviceContext";
 import { useGroups } from "../context/GroupContext";
 import { useConnections } from "../context/ConnectionContext";
+import DeviceIcon from './DeviceIcon';
+import ConnectionsLayer from './ConnectionsLayer';
 
 export default function MainView() {
   const { devices, deleteDevice } = useDevices();
-  const { groups, activeGroupId, setActiveGroupId, createGroup, deleteGroup } = useGroups();
-  const { connections, isConnecting, sourceDevice, startConnection, completeConnection, deleteConnection } = useConnections();
+  const { groups, activeGroupId, setActiveGroupId: setGroupsActiveGroupId } = useGroups();
+  const { 
+    connections, 
+    pending, 
+    startConnection, 
+    completeConnection, 
+    removeConnection,
+    setActiveGroupId,
+    updateConnectionStatus 
+  } = useConnections();
   const [elements, setElements] = useState([]);
   const [contextMenu, setContextMenu] = useState(null);
   const [elementMenu, setElementMenu] = useState(null);
+  const [connectionMenu, setConnectionMenu] = useState(null);
   const containerRef = useRef(null);
+
+  // Update connections group ID when active group changes
+  useEffect(() => {
+    console.log('Setting connections group ID:', activeGroupId);
+    if (setActiveGroupId) {
+      setActiveGroupId(activeGroupId);
+    }
+  }, [activeGroupId, setActiveGroupId]);
 
   // При загрузке или смене группы — формируем элементы
   useEffect(() => {
@@ -26,13 +45,11 @@ export default function MainView() {
     if (!group) return;
 
     const prepared = group.devices.map((device) => ({
-      id: device._id,
-      name: device.name,
-      type: device.type,
-      ip: device.ip,
-      telnetPort: 23,
-      x: 100 + Math.random() * 200,
-      y: 100 + Math.random() * 200,
+      ...device,
+      position: {
+        x: device.position?.x || 100 + Math.random() * 200,
+        y: device.position?.y || 100 + Math.random() * 200
+      }
     }));
 
     setElements(prepared);
@@ -48,19 +65,26 @@ export default function MainView() {
       y: e.clientY - rect.top,
     });
     setElementMenu(null);
+    setConnectionMenu(null);
+  };
+
+  const handleConnectionRightClick = (e, connection) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    setConnectionMenu({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      connection
+    });
+    setContextMenu(null);
+    setElementMenu(null);
   };
 
   const handleElementRightClick = (e, el) => {
     e.preventDefault();
     e.stopPropagation();
-    // Очищаем обработчики перетаскивания
-    if (currentDragElement) {
-      currentDragElement.style.cursor = 'default';
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-      setCurrentDragElement(null);
-      setCurrentDragId(null);
-    }
     
     const rect = containerRef.current.getBoundingClientRect();
     setElementMenu({
@@ -69,66 +93,46 @@ export default function MainView() {
       element: el,
     });
     setContextMenu(null);
+    setConnectionMenu(null);
   };
 
-  const handleElementClick = (el) => {
-    if (isConnecting) {
-      completeConnection(el);
+  const handleElementClick = (el, e) => {
+    console.log('Element clicked:', { element: el, event: e });
+    
+    if (pending) {
+      console.log('Completing connection with element:', el);
+      completeConnection(el._id, 'f0/0');
     }
   };
 
-  const onDrag = (e, id) => {
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    setElements((prev) =>
-      prev.map((el) => (el.id === id ? { ...el, x, y } : el))
-    );
-  };
-
-  // Добавляем состояние для отслеживания текущего перетаскиваемого элемента
-  const [currentDragElement, setCurrentDragElement] = useState(null);
-  const [currentDragId, setCurrentDragId] = useState(null);
-
-  // Функции для обработки перетаскивания
-  const move = (e) => {
-    if (currentDragId) {
-      e.preventDefault();
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      onDrag(e, currentDragId);
-    }
-  };
-
-  const up = () => {
-    if (currentDragElement) {
-      currentDragElement.style.cursor = 'grab';
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-      setCurrentDragElement(null);
-      setCurrentDragId(null);
+  const onPortPointerDown = (element, portName, e) => {
+    console.log('Port pointer down:', { element, portName, event: e });
+    e.stopPropagation();
+    
+    if (pending) {
+      console.log('Completing connection with port:', { element, portName });
+      completeConnection(element._id, portName);
+    } else {
+      console.log('Starting connection from port:', { element, portName });
+      startConnection(element._id, portName);
     }
   };
 
   const deleteElement = (id) => {
     deleteDevice(id);
-    setElements((prev) => prev.filter((el) => el.id !== id));
+    setElements((prev) => prev.filter((el) => el._id !== id));
     setElementMenu(null);
   };
 
-  const getConnectionPath = (source, target) => {
-    const sourceEl = elements.find(el => el.id === source);
-    const targetEl = elements.find(el => el.id === target);
-    if (!sourceEl || !targetEl) return null;
+  const deleteConnection = (connectionId) => {
+    removeConnection(connectionId);
+    setConnectionMenu(null);
+  };
 
-    const sourceX = sourceEl.x + 50; // Assuming element width is 100px
-    const sourceY = sourceEl.y + 25; // Assuming element height is 50px
-    const targetX = targetEl.x + 50;
-    const targetY = targetEl.y + 25;
-
-    return `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
+  const toggleConnectionStatus = (connectionId, currentStatus) => {
+    const newStatus = currentStatus === 'up' ? 'down' : 'up';
+    updateConnectionStatus(connectionId, newStatus);
+    setConnectionMenu(null);
   };
 
   return (
@@ -140,79 +144,23 @@ export default function MainView() {
       {/* Grid background */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:40px_40px] z-0" />
 
-      {/* Connections */}
-      <svg className="absolute inset-0 z-5 pointer-events-none" style={{height: '100%', width: '100%'}}>
-        {connections.map(conn => {
-          const path = getConnectionPath(conn.source, conn.target);
-          if (!path) return null;
-          return (
-            <g key={`connection-${conn.id}`}>
-              <path
-                key={`path-${conn.id}`}
-                d={path}
-                stroke={isConnecting ? "#4CAF50" : "#666"}
-                strokeWidth="2"
-                fill="none"
-                markerEnd="url(#arrowhead)"
-              />
-            </g>
-          );
-        })}
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="10"
-            markerHeight="7"
-            refX="9"
-            refY="3.5"
-            orient="auto"
-          >
-            <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
-          </marker>
-        </defs>
-      </svg>
+      {/* Connections Layer */}
+      <ConnectionsLayer onConnectionRightClick={handleConnectionRightClick} />
 
       {/* Elements */}
       <div className="absolute inset-0 z-10">
-        {elements.map((el) => (
-          <div
-            key={`element-${el.id}`}
-            onClick={() => handleElementClick(el)}
-            onContextMenu={(e) => handleElementRightClick(e, el)}
-            onDoubleClick={() => window.open(`telnet://${el.ip}`, "_blank")}
-            style={{ left: el.x, top: el.y, position: "absolute" }}
-            className={`px-3 py-2 bg-gray-700 rounded shadow text-white hover:bg-gray-600 select-none ${
-              isConnecting ? "ring-2 ring-green-500" : ""
-            } ${sourceDevice?.id === el.id ? "ring-2 ring-blue-500" : ""}`}
-            onMouseDown={(e) => {
-              if (e.button === 0) { // Только для левой кнопки мыши
-                e.currentTarget.style.cursor = 'grabbing';
-                setCurrentDragElement(e.currentTarget);
-                setCurrentDragId(el.id);
-                window.addEventListener("mousemove", move);
-                window.addEventListener("mouseup", up);
-              }
-            }}
-            onMouseEnter={(e) => {
-              if (!isConnecting && !currentDragElement) {
-                e.currentTarget.style.cursor = 'grab';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!currentDragElement) {
-                e.currentTarget.style.cursor = 'default';
-              }
-            }}
-          >
-            {el.type === "router" && "🛜 Router"}
-            {el.type === "switch" && "🔀 Switch"}
-            {el.type === "pc" && "💻 PC"}
-            <br />
-            {el.ip}
-          </div>
+        {devices.map(device => (
+          <DeviceIcon
+            key={device._id}
+            device={device}
+            onPortPointerDown={(portName, e) => onPortPointerDown(device, portName, e)}
+            onClick={(e) => handleElementClick(device, e)}
+            onContextMenu={(e) => handleElementRightClick(e, device)}
+          />
         ))}
       </div>
 
+      {/* Context menus */}
       {contextMenu && (
         <div
           key="context-menu"
@@ -228,7 +176,7 @@ export default function MainView() {
           </ul>
         </div>
       )}
-      {/* Context menu for element */}
+
       {elementMenu && (
         <ul
           key="element-menu"
@@ -237,21 +185,44 @@ export default function MainView() {
         >
           <li
             key="edit"
-            onClick={() => alert(`Edit element ${elementMenu.element.id}`)}
+            onClick={() => alert(`Edit element ${elementMenu.element._id}`)}
             className="px-4 py-2 hover:bg-gray-700 cursor-pointer"
           >
             ✏️ Edit
           </li>
           <li
             key="connect"
-            onClick={() => startConnection(elementMenu.element)}
+            onClick={() => startConnection(elementMenu.element._id, 'f0/0')}
             className="px-4 py-2 hover:bg-gray-700 cursor-pointer"
           >
             🔌 Connect
           </li>
           <li
             key="delete"
-            onClick={() => deleteElement(elementMenu.element.id)}
+            onClick={() => deleteElement(elementMenu.element._id)}
+            className="px-4 py-2 hover:bg-gray-700 cursor-pointer text-red-400"
+          >
+            ❌ Delete
+          </li>
+        </ul>
+      )}
+
+      {connectionMenu && (
+        <ul
+          key="connection-menu"
+          className="absolute bg-gray-800 text-white rounded shadow-md z-20"
+          style={{ top: connectionMenu.y, left: connectionMenu.x }}
+        >
+          <li
+            key="status"
+            onClick={() => toggleConnectionStatus(connectionMenu.connection._id, connectionMenu.connection.status)}
+            className="px-4 py-2 hover:bg-gray-700 cursor-pointer"
+          >
+            {connectionMenu.connection.status === 'up' ? '🔴 Disable' : '🟢 Enable'}
+          </li>
+          <li
+            key="delete"
+            onClick={() => deleteConnection(connectionMenu.connection._id)}
             className="px-4 py-2 hover:bg-gray-700 cursor-pointer text-red-400"
           >
             ❌ Delete
