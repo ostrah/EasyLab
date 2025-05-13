@@ -73,6 +73,9 @@ router.post('/', async (req, res) => {
       .populate('devA', 'name type ip')
       .populate('devB', 'name type ip');
 
+    // Отправляем событие о создании соединения
+    req.app.get('io').emit('connection:created', populatedConnection);
+
     res.status(201).json(populatedConnection);
   } catch (err) {
     console.error('Error creating connection:', err);
@@ -87,6 +90,10 @@ router.delete('/:id', async (req, res) => {
     if (!connection) {
       return res.status(404).json({ message: 'Connection not found' });
     }
+
+    // Отправляем событие об удалении соединения
+    req.app.get('io').emit('connection:deleted', connection._id);
+
     res.json({ message: 'Connection deleted' });
   } catch (err) {
     console.error('Error deleting connection:', err);
@@ -112,6 +119,9 @@ router.patch('/:id/status', async (req, res) => {
     if (!connection) {
       return res.status(404).json({ message: 'Connection not found' });
     }
+
+    // Отправляем событие об обновлении соединения
+    req.app.get('io').emit('connection:updated', connection);
 
     res.json(connection);
   } catch (err) {
