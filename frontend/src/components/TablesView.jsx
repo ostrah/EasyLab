@@ -9,8 +9,7 @@ export default function TablesView() {
   const [form, setForm] = useState({
     name: "",
     type: "router",
-    ipExternal: "",
-    ipInternal: "",
+    ip: "",
   });
 
   const handleChange = (e) => {
@@ -19,12 +18,12 @@ export default function TablesView() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.ipExternal || !form.ipInternal) {
+    if (!form.name || !form.ip) {
       alert("❗ Все поля должны быть заполнены");
       return;
     }
     await addDevice(form);
-    setForm({ name: "", type: "router", ipExternal: "", ipInternal: "" });
+    setForm({ name: "", type: "router", ip: "" });
   };
 
   return (
@@ -51,16 +50,9 @@ export default function TablesView() {
           <option value="pc">PC</option>
         </select>
         <input
-          name="ipExternal"
-          placeholder="External IP"
-          value={form.ipExternal}
-          onChange={handleChange}
-          className="border border-gray-500 bg-gray-800 p-2 mr-2 rounded text-white"
-        />
-        <input
-          name="ipInternal"
-          placeholder="Internal IP"
-          value={form.ipInternal}
+          name="ip"
+          placeholder="IP Address"
+          value={form.ip}
           onChange={handleChange}
           className="border border-gray-500 bg-gray-800 p-2 mr-2 rounded text-white"
         />
@@ -78,8 +70,7 @@ export default function TablesView() {
           <tr className="bg-gray-800">
             <th className="border border-gray-700 px-2 py-1">Name</th>
             <th className="border border-gray-700 px-2 py-1">Type</th>
-            <th className="border border-gray-700 px-2 py-1">External IP</th>
-            <th className="border border-gray-700 px-2 py-1">Internal IP</th>
+            <th className="border border-gray-700 px-2 py-1">IP Address</th>
             <th className="border border-gray-700 px-2 py-1">Actions</th>
           </tr>
         </thead>
@@ -88,8 +79,7 @@ export default function TablesView() {
             <tr key={device._id} className="hover:bg-gray-800">
               <td className="border border-gray-700 px-2 py-1">{device.name}</td>
               <td className="border border-gray-700 px-2 py-1">{device.type}</td>
-              <td className="border border-gray-700 px-2 py-1">{device.ipExternal}</td>
-              <td className="border border-gray-700 px-2 py-1">{device.ipInternal}</td>
+              <td className="border border-gray-700 px-2 py-1">{device.ip}</td>
               <td className="border border-gray-700 px-2 py-1">
                 <button
                   onClick={() => deleteDevice(device._id)}

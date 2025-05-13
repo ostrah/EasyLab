@@ -14,8 +14,7 @@ router.post('/', async (req, res) => {
     const device = new Device({
         name: req.body.name,
         type: req.body.type,
-        ipExternal: req.body.ipExternal,
-        ipInternal: req.body.ipInternal
+        ip: req.body.ip
     });
     try {
         const newDevice = await device.save();

@@ -29,7 +29,7 @@ export default function MainView() {
       id: device._id,
       name: device.name,
       type: device.type,
-      ip: device.ipExternal,
+      ip: device.ip,
       telnetPort: 23,
       x: 100 + Math.random() * 200,
       y: 100 + Math.random() * 200,
