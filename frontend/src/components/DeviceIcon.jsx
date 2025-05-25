@@ -10,7 +10,8 @@ export default function DeviceIcon({
   onPortPointerDown,
   onPortPointerEnter,
   onPortPointerLeave,
-  isDragging
+  isDragging,
+  connections = []
 }) {
   const iconRef = useRef(null);
   const { updateDevicePosition } = useDevices();
@@ -77,6 +78,32 @@ export default function DeviceIcon({
     }
   };
 
+  // Генерируем интерфейсы, если их нет
+  const interfaces = device.interfaces || (() => {
+    const ifaces = [];
+    switch (device.type) {
+      case 'router':
+        for (let i = 0; i < 4; i++) {
+          ifaces.push({ name: `f0/${i}`, type: 'ethernet', status: 'up' });
+        }
+        for (let i = 0; i < 2; i++) {
+          ifaces.push({ name: `s0/${i}`, type: 'serial', status: 'up' });
+        }
+        ifaces.push({ name: 'console', type: 'console', status: 'up' });
+        break;
+      case 'switch':
+        for (let i = 0; i < 8; i++) {
+          ifaces.push({ name: `f0/${i}`, type: 'ethernet', status: 'up' });
+        }
+        ifaces.push({ name: 'console', type: 'console', status: 'up' });
+        break;
+      case 'pc':
+        ifaces.push({ name: 'eth0', type: 'ethernet', status: 'up' });
+        break;
+    }
+    return ifaces;
+  })();
+
   return (
     <div 
       ref={iconRef}
@@ -91,19 +118,27 @@ export default function DeviceIcon({
     >
       {getDeviceIcon()}
       <div className="absolute inset-0">
-        {device.interfaces?.map((iface) => (
-          <Port
-            key={iface.name}
-            deviceId={device._id}
-            label={iface.name}
-            position={calculatePortPosition(iface.name, device.type)}
-            type={iface.type}
-            status={iface.status}
-            onPointerDown={(e) => onPortPointerDown?.(e, device._id, iface.name)}
-            onPointerEnter={(e) => onPortPointerEnter?.(e, device._id, iface.name)}
-            onPointerLeave={(e) => onPortPointerLeave?.(e, device._id, iface.name)}
-          />
-        ))}
+        {interfaces.map((iface) => {
+          const isConnected = connections.some(
+            conn =>
+              ((conn.devA?._id || conn.devA) === device._id && conn.ifaceA === iface.name) ||
+              ((conn.devB?._id || conn.devB) === device._id && conn.ifaceB === iface.name)
+          );
+          return (
+            <Port
+              key={iface.name}
+              deviceId={device._id}
+              label={iface.name}
+              position={calculatePortPosition(iface.name, device.type)}
+              type={iface.type}
+              status={iface.status}
+              isConnected={isConnected}
+              onPointerDown={(e) => onPortPointerDown?.(device._id, iface.name, e)}
+              onPointerEnter={(e) => onPortPointerEnter?.(e, device._id, iface.name)}
+              onPointerLeave={(e) => onPortPointerLeave?.(e, device._id, iface.name)}
+            />
+          );
+        })}
       </div>
       <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-center">
         <div className="text-sm font-medium">{device.name}</div>

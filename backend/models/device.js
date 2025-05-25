@@ -14,6 +14,16 @@ const deviceSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  position: {
+    x: {
+      type: Number,
+      default: 100
+    },
+    y: {
+      type: Number,
+      default: 100
+    }
+  },
   interfaces: [{
     name: {
       type: String,
@@ -29,17 +39,7 @@ const deviceSchema = new mongoose.Schema({
       enum: ['up', 'down'],
       default: 'up'
     }
-  }],
-  position: {
-    x: {
-      type: Number,
-      default: 0
-    },
-    y: {
-      type: Number,
-      default: 0
-    }
-  }
+  }]
 }, {
   timestamps: true
 });

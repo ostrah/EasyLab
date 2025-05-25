@@ -28,6 +28,8 @@ router.get('/', async (req, res) => {
 // Создать новое соединение
 router.post('/', async (req, res) => {
   try {
+    console.log('🔌 Creating new connection:', req.body);
+
     const { groupId, devA, ifaceA, devB, ifaceB, cableType } = req.body;
     console.log('🔌 Creating new connection:', {
       groupId,
@@ -84,12 +86,12 @@ router.post('/', async (req, res) => {
     console.log('💾 Saving new connection:', connection);
     await connection.save();
     
-    const populatedConnection = await connection
-      .populate('devA', 'name type ip')
-      .populate('devB', 'name type ip');
-
-    console.log('✅ Connection created successfully:', populatedConnection);
-    res.status(201).json(populatedConnection);
+    await connection.populate([
+      { path: 'devA', select: 'name type ip' },
+      { path: 'devB', select: 'name type ip' }
+    ]);
+    console.log('✅ Connection created successfully:', connection);
+    res.status(201).json(connection);
   } catch (err) {
     console.error('❌ Error creating connection:', err);
     res.status(500).json({ message: 'Server error' });

@@ -19,22 +19,22 @@ export const unregisterPort = (deviceId, portName) => {
   console.log('Port unregistered:', key);
 };
 
-export const getPortCenter = (deviceId, portName) => {
+export const getPortCenter = (deviceId, portName, containerRect) => {
   const key = `${deviceId}-${portName}`;
   const element = portRegistry.get(key);
-  if (!element) {
-    console.log('Port not found:', key);
+  if (!element || !containerRect) {
+    console.log('Port not found or containerRect missing:', key);
     return null;
   }
   const rect = element.getBoundingClientRect();
   return {
-    x: rect.left + rect.width / 2,
-    y: rect.top + rect.height / 2
+    x: rect.left + rect.width / 2 - containerRect.left,
+    y: rect.top + rect.height / 2 - containerRect.top
   };
 };
 
-export default function ConnectionsLayer({ onConnectionRightClick }) {
-  const { connections, pending } = useConnections();
+export default function ConnectionsLayer({ connections, onConnectionRightClick }) {
+  const { pending } = useConnections();
   const [svgSize, setSvgSize] = useState({ width: 0, height: 0 });
   const containerRef = useRef(null);
 
@@ -44,8 +44,8 @@ export default function ConnectionsLayer({ onConnectionRightClick }) {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
         setSvgSize({
-          width: rect.width,
-          height: rect.height
+          width: rect.width || '100%',
+          height: rect.height || '100%'
         });
       }
     };
@@ -57,20 +57,15 @@ export default function ConnectionsLayer({ onConnectionRightClick }) {
 
   // Функция для получения точек соединения
   const getConnectionPoints = (connection) => {
-    // Поддержка старой структуры
-    if (connection.source && connection.target) {
-      const sourceCenter = getPortCenter(connection.source, 'f0/0');
-      const targetCenter = getPortCenter(connection.target, 'f0/0');
-      return { sourceCenter, targetCenter };
-    }
-    
-    // Поддержка новой структуры
     if (connection.devA && connection.devB) {
-      const sourceCenter = getPortCenter(connection.devA, connection.ifaceA);
-      const targetCenter = getPortCenter(connection.devB, connection.ifaceB);
+      const devAId = connection.devA._id || connection.devA;
+      const devBId = connection.devB._id || connection.devB;
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      const sourceCenter = getPortCenter(devAId, connection.ifaceA, containerRect);
+      const targetCenter = getPortCenter(devBId, connection.ifaceB, containerRect);
       return { sourceCenter, targetCenter };
     }
-
+    // ... поддержка старой структуры если нужно
     return { sourceCenter: null, targetCenter: null };
   };
 
@@ -87,8 +82,10 @@ export default function ConnectionsLayer({ onConnectionRightClick }) {
     const strokeColor = isActive ? '#22c55e' : '#ef4444';
     const strokeWidth = isActive ? 2 : 1;
 
+    // console.log('\n== connection: ', connection);
+    
     return (
-      <g key={connection._id}>
+      <g key={`${connection._id}-${Date.now()}`}>
         <line
           x1={sourceCenter.x}
           y1={sourceCenter.y}
@@ -118,12 +115,13 @@ export default function ConnectionsLayer({ onConnectionRightClick }) {
   // Функция для отрисовки ожидающего соединения
   const renderPendingConnection = () => {
     if (!pending) return null;
-
-    const sourceCenter = getPortCenter(pending.deviceId, pending.portName);
+    const containerRect = containerRef.current?.getBoundingClientRect();
+    const sourceCenter = getPortCenter(pending.deviceId, pending.portName, containerRect);
     if (!sourceCenter) return null;
 
+    console.log('== pending: ', pending);
     return (
-      <g>
+      <g key={`pending-${pending.deviceId}`}>
         <line
           x1={sourceCenter.x}
           y1={sourceCenter.y}
@@ -146,7 +144,7 @@ export default function ConnectionsLayer({ onConnectionRightClick }) {
   return (
     <svg
       ref={containerRef}
-      className="absolute inset-0 z-10 pointer-events-none"
+      className="absolute inset-0 z-20 pointer-events-none"
       width={svgSize.width}
       height={svgSize.height}
     >

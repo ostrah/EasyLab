@@ -32,6 +32,6 @@ export default function Home() {
           {view === "connections" && <GroupEditor />}
         </div>
       </div>
-    </main>
+      </main>
   );
 }

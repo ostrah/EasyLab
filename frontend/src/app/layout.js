@@ -10,9 +10,9 @@ export default function RootLayout({ children }) {
         <GroupProvider>
           <DeviceProvider>
             <ConnectionProvider>
-              {children}
+            {children}
             </ConnectionProvider>
-          </DeviceProvider>
+            </DeviceProvider>
         </GroupProvider>
       </body>
     </html>

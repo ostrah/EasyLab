@@ -12,7 +12,8 @@ export default function Port({
   status = 'up',
   onPointerDown,
   onPointerEnter,
-  onPointerLeave
+  onPointerLeave,
+  isConnected = false
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const portRef = useRef(null);
@@ -74,7 +75,7 @@ export default function Port({
           height: '12px',
           borderRadius: '50%',
           border: `2px solid ${getPortColor()}`,
-          backgroundColor: isHovered || isPending ? getPortColor() : '#222',
+          backgroundColor: isConnected ? getPortColor() : (isHovered || isPending ? getPortColor() : '#222'),
           cursor: 'pointer',
           transition: 'all 0.2s ease'
         }}

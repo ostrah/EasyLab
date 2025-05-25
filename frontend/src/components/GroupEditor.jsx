@@ -18,9 +18,11 @@ export default function GroupEditor() {
     removeDeviceFromGroup
   } = useGroups();
   const { connections, createConnection, deleteConnection } = useConnections();
-  
+  console.log('connections, createConnection, deleteConnection: ', connections, createConnection, deleteConnection);
   const [selectedSource, setSelectedSource] = useState(null);
   const [selectedTarget, setSelectedTarget] = useState(null);
+  const [selectedSourceInterface, setSelectedSourceInterface] = useState(null);
+  const [selectedTargetInterface, setSelectedTargetInterface] = useState(null);
   const [editingDevice, setEditingDevice] = useState(null);
   const [newDevice, setNewDevice] = useState({ name: "", type: "pc", ip: "" });
 
@@ -32,16 +34,25 @@ export default function GroupEditor() {
     return <p className="p-4">Выберите группу</p>;
   }
 
-  const groupConnections = connections.filter(conn => 
-    activeGroup.devices.some(d => d._id === conn.source) && 
-    activeGroup.devices.some(d => d._id === conn.target)
-  );
+  const groupConnections = connections;
+  // .filter(conn => 
+  //   activeGroup.devices.some(d => d._id === conn.source) && 
+  //   activeGroup.devices.some(d => d._id === conn.target)
+  // );
 
   const handleCreateConnection = () => {
-    if (selectedSource && selectedTarget && selectedSource !== selectedTarget) {
-      createConnection(selectedSource, selectedTarget);
+    if (
+      selectedSource &&
+      selectedTarget &&
+      selectedSourceInterface &&
+      selectedTargetInterface &&
+      selectedSource !== selectedTarget
+    ) {
+      createConnection(selectedSource, selectedTarget, selectedSourceInterface, selectedTargetInterface);
       setSelectedSource(null);
       setSelectedTarget(null);
+      setSelectedSourceInterface(null);
+      setSelectedTargetInterface(null);
     }
   };
 
@@ -63,6 +74,11 @@ export default function GroupEditor() {
   const getDeviceName = (deviceId) => {
     const device = devices.find(d => d._id === deviceId);
     return device ? `${device.name} (${device.ip})` : deviceId;
+  };
+
+  const getDeviceInterfaces = (deviceId) => {
+    const device = devices.find(d => d._id === deviceId);
+    return device ? device.interfaces : [];
   };
 
   return (
@@ -204,41 +220,89 @@ export default function GroupEditor() {
           {activeGroup.devices.length > 1 && (
             <div className="bg-gray-800 p-4 rounded-lg">
               <h3 className="text-lg font-semibold mb-3">Create Connection</h3>
-              <div className="flex gap-4 items-end">
-                <div className="flex-1">
-                  <label className="block text-sm mb-1">Source Device</label>
-                  <select
-                    className="w-full bg-gray-700 rounded px-3 py-2"
-                    value={selectedSource || ""}
-                    onChange={(e) => setSelectedSource(e.target.value)}
-                  >
-                    <option value="">Select source device</option>
-                    {activeGroup.devices.map(device => (
-                      <option key={device._id} value={device._id}>
-                        {device.name} ({device.ip})
-                      </option>
-                    ))}
-                  </select>
+              <div className="flex flex-col gap-4">
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1">
+                    <label className="block text-sm mb-1">Source Device</label>
+                    <select
+                      className="w-full bg-gray-700 rounded px-3 py-2"
+                      value={selectedSource || ""}
+                      onChange={(e) => {
+                        setSelectedSource(e.target.value);
+                        setSelectedSourceInterface(null);
+                      }}
+                    >
+                      <option value="">Select source device</option>
+                      {activeGroup.devices.map(device => (
+                        <option key={device._id} value={device._id}>
+                          {device.name} ({device.ip})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm mb-1">Source Interface</label>
+                    <select
+                      className="w-full bg-gray-700 rounded px-3 py-2"
+                      value={selectedSourceInterface || ""}
+                      onChange={(e) => setSelectedSourceInterface(e.target.value)}
+                      disabled={!selectedSource}
+                    >
+                      <option value="">Select source interface</option>
+                      {selectedSource && getDeviceInterfaces(selectedSource).map(iface => (
+                        <option key={iface.name} value={iface.name}>
+                          {iface.name} ({iface.type})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <label className="block text-sm mb-1">Target Device</label>
-                  <select
-                    className="w-full bg-gray-700 rounded px-3 py-2"
-                    value={selectedTarget || ""}
-                    onChange={(e) => setSelectedTarget(e.target.value)}
-                  >
-                    <option value="">Select target device</option>
-                    {activeGroup.devices.map(device => (
-                      <option key={device._id} value={device._id}>
-                        {device.name} ({device.ip})
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1">
+                    <label className="block text-sm mb-1">Target Device</label>
+                    <select
+                      className="w-full bg-gray-700 rounded px-3 py-2"
+                      value={selectedTarget || ""}
+                      onChange={(e) => {
+                        setSelectedTarget(e.target.value);
+                        setSelectedTargetInterface(null);
+                      }}
+                    >
+                      <option value="">Select target device</option>
+                      {activeGroup.devices.map(device => (
+                        <option key={device._id} value={device._id}>
+                          {device.name} ({device.ip})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm mb-1">Target Interface</label>
+                    <select
+                      className="w-full bg-gray-700 rounded px-3 py-2"
+                      value={selectedTargetInterface || ""}
+                      onChange={(e) => setSelectedTargetInterface(e.target.value)}
+                      disabled={!selectedTarget}
+                    >
+                      <option value="">Select target interface</option>
+                      {selectedTarget && getDeviceInterfaces(selectedTarget).map(iface => (
+                        <option key={iface.name} value={iface.name}>
+                          {iface.name} ({iface.type})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <button
                   onClick={handleCreateConnection}
-                  disabled={!selectedSource || !selectedTarget || selectedSource === selectedTarget}
-                  className="bg-blue-600 px-4 py-2 rounded disabled:opacity-50"
+                  disabled={
+                    !selectedSource ||
+                    !selectedTarget ||
+                    !selectedSourceInterface ||
+                    !selectedTargetInterface ||
+                    selectedSource === selectedTarget
+                  }
+                  className="bg-blue-600 px-4 py-2 rounded disabled:opacity-50 self-end"
                 >
                   Create Connection
                 </button>
@@ -252,16 +316,16 @@ export default function GroupEditor() {
             <div className="space-y-2">
               {groupConnections.map(conn => (
                 <div
-                  key={conn.id}
+                  key={conn._id || conn.id}
                   className="flex items-center justify-between bg-gray-700 p-3 rounded"
                 >
                   <div className="flex items-center gap-2">
-                    <span>{getDeviceName(conn.source)}</span>
+                    <span>{conn.devA?.name} ({conn.devA?.ip}) [{conn.ifaceA}]</span>
                     <span>→</span>
-                    <span>{getDeviceName(conn.target)}</span>
+                    <span>{conn.devB?.name} ({conn.devB?.ip}) [{conn.ifaceB}]</span>
                   </div>
                   <button
-                    onClick={() => deleteConnection(conn.id)}
+                    onClick={() => deleteConnection(conn._id || conn.id)}
                     className="text-red-400 hover:text-red-300"
                   >
                     Delete

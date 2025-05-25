@@ -9,29 +9,30 @@ import ConnectionsLayer from './ConnectionsLayer';
 
 export default function MainView() {
   const { devices, deleteDevice } = useDevices();
-  const { groups, activeGroupId, setActiveGroupId: setGroupsActiveGroupId } = useGroups();
+  const { groups, activeGroupId, setActiveGroupId: setGroupsActiveGroupId, activeGroup } = useGroups();
   const { 
     connections, 
     pending, 
     startConnection, 
     completeConnection, 
     removeConnection,
-    setActiveGroupId,
+    setActiveGroupId: setConnectionsGroupId,
     updateConnectionStatus 
   } = useConnections();
   const [elements, setElements] = useState([]);
   const [contextMenu, setContextMenu] = useState(null);
   const [elementMenu, setElementMenu] = useState(null);
   const [connectionMenu, setConnectionMenu] = useState(null);
+  const [showHelp, setShowHelp] = useState(true);
   const containerRef = useRef(null);
 
   // Update connections group ID when active group changes
   useEffect(() => {
     console.log('Setting connections group ID:', activeGroupId);
-    if (setActiveGroupId) {
-      setActiveGroupId(activeGroupId);
+    if (setConnectionsGroupId) {
+      setConnectionsGroupId(activeGroupId);
     }
-  }, [activeGroupId, setActiveGroupId]);
+  }, [activeGroupId, setConnectionsGroupId]);
 
   // При загрузке или смене группы — формируем элементы
   useEffect(() => {
@@ -56,6 +57,7 @@ export default function MainView() {
   }, [devices, activeGroupId, groups]);
 
   const handleRightClick = (e) => {
+    // TODO:...
     e.preventDefault();
     console.log('== containerRef: ', containerRef);
     
@@ -68,7 +70,13 @@ export default function MainView() {
     setConnectionMenu(null);
   };
 
+  const handleGroupSelect = (groupId) => {
+    setGroupsActiveGroupId(groupId);
+    setContextMenu(null);
+  };
+
   const handleConnectionRightClick = (e, connection) => {
+    
     e.preventDefault();
     e.stopPropagation();
     
@@ -105,16 +113,16 @@ export default function MainView() {
     }
   };
 
-  const onPortPointerDown = (element, portName, e) => {
-    console.log('Port pointer down:', { element, portName, event: e });
+  const onPortPointerDown = (deviceId, portName, e) => {
+    console.log('Port pointer down:', { deviceId, portName, event: e });
     e.stopPropagation();
     
     if (pending) {
-      console.log('Completing connection with port:', { element, portName });
-      completeConnection(element._id, portName);
+      console.log('Completing connection with port:', { portName });
+      completeConnection(pending.deviceId, portName);
     } else {
-      console.log('Starting connection from port:', { element, portName });
-      startConnection(element._id, portName);
+      console.log('Starting connection from port:', { portName });
+      startConnection(deviceId, portName);
     }
   };
 
@@ -135,6 +143,14 @@ export default function MainView() {
     setConnectionMenu(null);
   };
 
+  const groupDeviceIds = (activeGroup?.devices || []).map(d => d._id);
+  const groupConnections = connections.filter(
+    conn =>
+      groupDeviceIds.includes(conn.devA?._id || conn.devA) &&
+      groupDeviceIds.includes(conn.devB?._id || conn.devB)
+  );
+  console.log('groupConnections: ', groupConnections);
+
   return (
     <div
       ref={containerRef}
@@ -144,16 +160,40 @@ export default function MainView() {
       {/* Grid background */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:40px_40px] z-0" />
 
+      {/* Help overlay */}
+      {showHelp && (
+        <div className="absolute top-4 right-4 bg-gray-800 text-white p-4 rounded-lg shadow-lg z-30 max-w-md">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-lg font-semibold">Как работать с соединениями:</h3>
+            <button 
+              onClick={() => setShowHelp(false)}
+              className="text-gray-400 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+          <ul className="space-y-2 text-sm">
+            <li>1. <span className="font-medium">Создание соединения:</span> Кликните на порт первого устройства, затем на порт второго</li>
+            <li>2. <span className="font-medium">Управление соединением:</span> Правый клик на линии соединения</li>
+            <li>3. <span className="font-medium">Управление устройством:</span> Правый клик на устройстве</li>
+            <li>4. <span className="font-medium">Выбор группы:</span> Правый клик на пустом месте</li>
+          </ul>
+        </div>
+      )}
+
       {/* Connections Layer */}
-      <ConnectionsLayer onConnectionRightClick={handleConnectionRightClick} />
+      <ConnectionsLayer
+        connections={groupConnections}
+        onConnectionRightClick={handleConnectionRightClick}
+      />
 
       {/* Elements */}
       <div className="absolute inset-0 z-10">
-        {devices.map(device => (
+        {(activeGroup?.devices || []).map(device => (
           <DeviceIcon
             key={device._id}
             device={device}
-            onPortPointerDown={(portName, e) => onPortPointerDown(device, portName, e)}
+            onPortPointerDown={(e) => onPortPointerDown(device._id, 'f0/0', e)}
             onClick={(e) => handleElementClick(device, e)}
             onContextMenu={(e) => handleElementRightClick(e, device)}
           />
@@ -169,7 +209,11 @@ export default function MainView() {
         >
           <ul>
             {groups.map(g => (
-              <li key={`group-${g._id}`} className="px-4 py-2 hover:bg-gray-700 cursor-pointer">
+              <li 
+                key={`group-${g._id}`} 
+                onClick={() => handleGroupSelect(g._id)}
+                className={`px-4 py-2 hover:bg-gray-700 cursor-pointer ${g._id === activeGroupId ? 'bg-gray-700' : ''}`}
+              >
                 {g.name}
               </li>
             ))}
@@ -192,7 +236,7 @@ export default function MainView() {
           </li>
           <li
             key="connect"
-            onClick={() => startConnection(elementMenu.element._id, 'f0/0')}
+            onClick={(e) => onPortPointerDown(elementMenu.element._id, 'f0/0', e)}
             className="px-4 py-2 hover:bg-gray-700 cursor-pointer"
           >
             🔌 Connect
